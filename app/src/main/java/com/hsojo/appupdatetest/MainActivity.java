@@ -1,32 +1,31 @@
 package com.hsojo.appupdatetest;
 
+import android.content.Context;
 import android.os.Bundle;
+import android.view.Menu;
+import android.view.MenuItem;
+import android.widget.ProgressBar;
+import android.widget.TextView;
 
-import com.google.android.material.floatingactionbutton.FloatingActionButton;
-import com.google.android.material.snackbar.Snackbar;
-
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 
-import android.util.Log;
-import android.view.View;
-import android.view.Menu;
-import android.view.MenuItem;
-import android.widget.Button;
-import android.widget.TextView;
-
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.hsojo.appupdatetest.service.GitHubService;
+import com.hsojo.appupdatetest.task.UpdateTask;
 
-import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
-import retrofit2.Retrofit;
 
 public class MainActivity extends AppCompatActivity {
-    TextView tv_content;
+    public String VERSION = "0.0.0";
+    UpdateTask t_update;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -35,23 +34,69 @@ public class MainActivity extends AppCompatActivity {
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
-        FloatingActionButton fab = findViewById(R.id.fab);
-        fab.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-                        .setAction("Action", null).show();
-            }
-        });
+        FloatingActionButton fab_test = findViewById(R.id.fab_test);
+        fab_test.setOnClickListener(view -> callbackButtonTest());
 
-        this.tv_content = findViewById(R.id.tv_content);
-        Button b_test = findViewById(R.id.b_test);
-        b_test.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                callbackButtonTest();
+        TextView tv_file_name = findViewById(R.id.tv_file_name);
+        TextView tv_sub_progress = findViewById(R.id.tv_sub_progress);
+        TextView tv_total_progress = findViewById(R.id.tv_total_progress);
+        ProgressBar pb_sub = findViewById(R.id.pb_sub);
+        ProgressBar pb_total = findViewById(R.id.pb_total);
+
+        MainActivity this_activity = this;
+        Context app_context = getApplicationContext();
+        this.t_update = new UpdateTask(
+                app_context.getCacheDir().getPath(),
+                app_context.getFilesDir().getPath(),
+                new UpdateTask.Callback() {
+                    @Override
+                    public void onTotalProgressUpdate(int current, int max) {
+                        this_activity.runOnUiThread(() -> {
+                            pb_total.setProgress(current);
+                            pb_total.setMax(max);
+                            tv_total_progress.setText(String.format("%s/%s", current, max));
+                        });
+                    }
+
+                    @Override
+                    public void onSubProgressUpdate(int current, int max) {
+                        this_activity.runOnUiThread(() -> {
+                            pb_sub.setProgress(current);
+                            pb_sub.setMax(max);
+                            tv_sub_progress.setText(String.format("%s/%s", current, max));
+                        });
+                    }
+
+                    @Override
+                    public void onTaskAssetUpdate(GitHubService.Asset asset) {
+                        this_activity.runOnUiThread(() -> tv_file_name.setText(asset.name));
+                    }
+                }
+        );
+    }
+
+    public int toIntVer(String version) {
+        try {
+            return Integer.parseInt(version.replace(".", ""));
+        } catch (NumberFormatException e) {
+            return -1;
+        }
+    }
+
+    public ArrayList<GitHubService.Asset> getNewReleaseAssets(List<GitHubService.Release> releases, String currnet_version) {
+        int current_version_num = toIntVer(currnet_version);
+        ArrayList<GitHubService.Asset> assets = new ArrayList<>();
+        for (GitHubService.Release release : releases) {
+            int version_num = toIntVer(release.tag_name);
+            if (version_num > current_version_num) {
+                if (release.assets.size() >= 1) {
+                    GitHubService.Asset asset = release.assets.get(0);
+                    assets.add(asset);
+                }
             }
-        });
+        }
+
+        return assets;
     }
 
     public void callbackButtonTest() {
@@ -60,19 +105,18 @@ public class MainActivity extends AppCompatActivity {
             Call<List<GitHubService.Release>> call = github.releases("HsOjo", "SleeperX");
             call.enqueue(new Callback<List<GitHubService.Release>>() {
                 @Override
-                public void onResponse(Call<List<GitHubService.Release>> call, Response<List<GitHubService.Release>> response) {
+                public void onResponse(@NonNull Call<List<GitHubService.Release>> call, @NonNull Response<List<GitHubService.Release>> response) {
                     assert response.body() != null;
-                    for (GitHubService.Release r :
-                            response.body()) {
-                        String r_str = String.format("%s\n%s\n%s\n\n", r.name, r.tag_name, r.body);
-                        tv_content.append(r_str);
-                    }
 
+                    List<GitHubService.Release> releases = response.body();
+                    Collections.reverse(releases);
+                    ArrayList<GitHubService.Asset> urls = getNewReleaseAssets(releases, VERSION);
+                    t_update.execute((GitHubService.Asset[]) urls.toArray(new GitHubService.Asset[0]));
                 }
 
                 @Override
-                public void onFailure(Call<List<GitHubService.Release>> call, Throwable t) {
-
+                public void onFailure(@NonNull Call<List<GitHubService.Release>> call, @NonNull Throwable t) {
+                    System.out.println("Failed to get Release.");
                 }
             });
         } catch (Exception e) {
@@ -88,7 +132,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
+    public boolean onOptionsItemSelected(@NonNull MenuItem item) {
         // Handle action bar item clicks here. The action bar will
         // automatically handle clicks on the Home/Up button, so long
         // as you specify a parent activity in AndroidManifest.xml.
