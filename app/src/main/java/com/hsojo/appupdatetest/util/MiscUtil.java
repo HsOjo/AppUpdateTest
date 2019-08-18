@@ -24,7 +24,7 @@ public class MiscUtil {
         return result;
     }
 
-    private static void copyStream(InputStream is, OutputStream os, ProgressCallback callback) {
+    private static boolean copyStream(InputStream is, OutputStream os, ProgressCallback callback) {
         byte[] buffer = new byte[4096];
         try {
             int len, progress;
@@ -33,21 +33,25 @@ public class MiscUtil {
                 os.write(buffer, 0, len);
                 progress += len;
                 if (callback != null)
-                    callback.execute(progress);
+                    if (!callback.execute(progress))
+                        break;
             }
             os.flush();
+            return true;
         } catch (IOException e) {
             e.printStackTrace();
         }
+
+        return false;
     }
 
     public static boolean writeFile(InputStream is, String path, ProgressCallback callback) {
         File file = new File(path);
         try {
             FileOutputStream fos = new FileOutputStream(file);
-            copyStream(is, fos, callback);
+            boolean r = copyStream(is, fos, callback);
             fos.close();
-            return true;
+            return r;
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         } catch (IOException e) {
@@ -59,6 +63,6 @@ public class MiscUtil {
 
     @FunctionalInterface
     public interface ProgressCallback {
-        void execute(int progress);
+        boolean execute(int progress);
     }
 }

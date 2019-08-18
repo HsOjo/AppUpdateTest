@@ -1,5 +1,7 @@
 package com.hsojo.appupdatetest.util;
 
+import android.util.Log;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Objects;
@@ -13,6 +15,8 @@ import retrofit2.http.Streaming;
 import retrofit2.http.Url;
 
 public class DownloadUtil {
+    private static String TAG = "DownloadUtil";
+
     public static InputStream download(String url) {
         OkHttpClient ohc = new OkHttpClient.Builder().build();
         Retrofit retrofit = new Retrofit.Builder().baseUrl("https://github.com").callFactory(ohc).build();
@@ -21,6 +25,7 @@ public class DownloadUtil {
             return Objects.requireNonNull(call_download.execute().body()).byteStream();
         } catch (IOException e) {
             e.printStackTrace();
+            Log.d(TAG, "download: " + url);
         }
 
         return null;
