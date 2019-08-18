@@ -61,9 +61,12 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public UpdateTask buildUpdateTask() {
+        String dir_app_data = this.app_context.getFilesDir().getPath();
+        Log.d(TAG, "buildUpdateTask: " + dir_app_data);
         return new UpdateTask(
                 this.app_context,
-                String.format("%s/%s", this.app_context.getFilesDir().getPath(), "update_data"),
+                String.format("%s/%s", dir_app_data, "update_data"),
+                String.format("%s/%s", dir_app_data, "pack.zip"),
                 new UpdateTask.Callback() {
                     @Override
                     public void onTotalProgressUpdate(int current, int max) {
@@ -131,6 +134,7 @@ public class MainActivity extends AppCompatActivity {
                 Collections.reverse(releases);
                 ArrayList<UpdateTask.Asset> assets = getNewReleaseAssets(releases, app_version);
 
+                Log.d(TAG, "onResponse: [assets_num] " + assets.size());
                 Log.d(TAG, "onResponse: " + t_update.getStatus());
                 if (t_update.getStatus() != AsyncTask.Status.RUNNING)
                     t_update.execute((UpdateTask.Asset[]) assets.toArray(new UpdateTask.Asset[0]));
@@ -158,7 +162,8 @@ public class MainActivity extends AppCompatActivity {
         int id = item.getItemId();
 
         //noinspection SimplifiableIfStatement
-        if (id == R.id.action_settings) {
+        if (id == R.id.action_clear_version) {
+            VersionUtil.setVersion(this.app_context, "0.0.0");
             return true;
         }
 

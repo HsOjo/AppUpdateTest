@@ -1,4 +1,4 @@
 <resources>
     <string name="app_name">App Update Test</string>
-    <string name="action_settings">Settings</string>
+    <string name="action_clear_version">Clear Version</string>
 </resources>

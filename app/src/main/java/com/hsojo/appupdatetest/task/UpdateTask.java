@@ -12,7 +12,9 @@ import com.hsojo.appupdatetest.util.VersionUtil;
 
 import net.lingala.zip4j.ZipFile;
 import net.lingala.zip4j.exception.ZipException;
+import net.lingala.zip4j.model.ZipParameters;
 
+import java.io.File;
 import java.io.InputStream;
 
 
@@ -22,12 +24,14 @@ public class UpdateTask extends AsyncTask<UpdateTask.Asset, Void, Void> {
     private Context app_context;
     private String dir_cache;
     private String dir_data;
+    private String path_data_pack;
     private Callback callback;
 
-    public UpdateTask(Context context, String dir_data, Callback callback) {
+    public UpdateTask(Context context, String dir_data, String path_data_pack, Callback callback) {
         this.app_context = context;
         this.dir_cache = context.getCacheDir().getPath();
         this.dir_data = dir_data;
+        this.path_data_pack = path_data_pack;
         this.callback = callback;
     }
 
@@ -39,9 +43,20 @@ public class UpdateTask extends AsyncTask<UpdateTask.Asset, Void, Void> {
             return null;
     }
 
-    private boolean installUpdate(String zip_path) {
+    private boolean installUpdate(String path_zip) {
         try {
-            new ZipFile(zip_path).extractAll(dir_data);
+            File file_pack = new File(this.path_data_pack);
+            if (file_pack.exists())
+                new ZipFile(this.path_data_pack).extractAll(dir_data);
+            new ZipFile(path_zip).extractAll(dir_data);
+
+            if (file_pack.exists())
+                file_pack.delete();
+            ZipParameters params = new ZipParameters();
+            params.setIncludeRootFolder(false);
+            ZipFile pack = new ZipFile(this.path_data_pack);
+            pack.addFolder(new File(dir_data), params);
+
             return true;
         } catch (ZipException e) {
             e.printStackTrace();
